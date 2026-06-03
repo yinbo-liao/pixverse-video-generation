@@ -531,6 +531,23 @@ class TestFeedbackLoopRun:
         # When all three are clean, total_iterations should be minimal
         assert response.total_iterations >= 0
 
+    async def test_lpd_prompt_matches_lpd_text_after_refinement(
+        self, feedback_loop, sample_feedback_request_dict
+    ):
+        """After refinement, lpd_prompt and lpd_text describe the same content."""
+        request = FeedbackRequest(**sample_feedback_request_dict)
+        response = await feedback_loop.run(request)
+
+        for var in response.variations:
+            # The lpd_text should appear as the subject or motion in lpd_prompt
+            lpd_text = var.bridge_response.lpd_text
+            subject_desc = var.bridge_response.lpd_prompt.subject.description
+            # At minimum, lpd_text and subject should be non-empty and coherent
+            assert len(lpd_text) > 0
+            assert len(subject_desc) > 0
+            # After refinement, lpd_text equals final_prompt
+            assert lpd_text == var.final_prompt
+
     async def test_each_variation_has_bridge_response(
         self, feedback_loop, sample_feedback_request_dict
     ):

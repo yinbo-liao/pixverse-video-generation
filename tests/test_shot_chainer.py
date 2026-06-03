@@ -320,6 +320,34 @@ class TestChainerOrchestration:
                 f"expected formality={expected[i]}, got {cam.formality}"
             )
 
+    async def test_partial_override_inherits_base_style(self, shot_chainer):
+        """Setting only formality in override inherits enthusiasm from base style."""
+        request = ShotSequenceRequest(
+            anchor="a person",
+            base_prompt="standing in a field",
+            style={"formality": 0.9, "enthusiasm": 0.3, "technical_depth": 0.7},
+            shots=[
+                {"shot_index": 0, "shot_type": "wide",
+                 "style_overrides": {"formality": 0.1}},  # only override formality
+                {"shot_index": 1, "shot_type": "close-up"},
+            ],
+        )
+        response = await shot_chainer.chain(request)
+
+        # Shot 0: formality from override (0.1), enthusiasm from base (0.3)
+        cam0 = response.shots[0].bridge_response.lpd_prompt.camera_lens
+        mot0 = response.shots[0].bridge_response.lpd_prompt.action_motion
+        assert cam0.formality == 0.1
+        assert mot0.motion_strength == 0.3, (
+            f"Expected enthusiasm 0.3 from base style, got {mot0.motion_strength}"
+        )
+
+        # Shot 1: inherits base style fully (no overrides)
+        cam1 = response.shots[1].bridge_response.lpd_prompt.camera_lens
+        mot1 = response.shots[1].bridge_response.lpd_prompt.action_motion
+        assert cam1.formality == 0.9
+        assert mot1.motion_strength == 0.3
+
     async def test_base_style_overrides_shot_type_default(self, shot_chainer):
         """When base style is set, it overrides shot-type formality defaults."""
         request = ShotSequenceRequest(

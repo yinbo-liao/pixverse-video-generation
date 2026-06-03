@@ -23,6 +23,8 @@ outputs (no random.choice). This is essential for caching and reproducibility.
 
 from __future__ import annotations
 
+import re
+
 from app.core.exceptions import PromptTransformationError
 from app.schemas.bridge import BridgeRequest
 from app.schemas.prompt import (
@@ -99,7 +101,7 @@ class PromptTransformer:
 
     # Light-related keywords for sketch_notes fallback scan
     _LIGHT_KEYWORDS: list[str] = [
-        "light", "lit ", "shadow", "glow", "illuminat", "dark", "bright",
+        "light", r"\blit\b", "shadow", "glow", "illuminat", "dark", "bright",
         "sun", "moon", "beam", "ray", "lamp", "neon", "candle",
     ]
 
@@ -289,8 +291,9 @@ class PromptTransformer:
         """Scan sketch_notes for lighting-related sentences."""
         text_lower = sketch_notes.lower()
         for keyword in self._LIGHT_KEYWORDS:
-            idx = text_lower.find(keyword)
-            if idx >= 0:
+            match = re.search(keyword, text_lower)
+            if match:
+                idx = match.start()
                 # Find the sentence containing this keyword
                 sentence_start = text_lower.rfind(".", 0, idx)
                 sentence_start = sentence_start + 1 if sentence_start >= 0 else 0

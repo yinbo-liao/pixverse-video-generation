@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import time
 
+from app.schemas.bridge import BridgeConstraints, BridgeGenerationParams
 from app.schemas.concept_fusion import FusionRequest
 from app.schemas.feedback_loop import FeedbackRequest
 from app.schemas.parameter_injection import ParameterInjectionRequest
@@ -20,6 +21,13 @@ from app.services.concept_fusion import ConceptFusion
 from app.services.feedback_loop import FeedbackLoop
 from app.services.parameter_injector import ParameterInjector
 from app.services.shot_chainer import ShotChainer
+
+_SHOT_TYPE_CYCLE = ["medium", "wide", "medium", "close-up"]
+
+
+def _rotate_shot_type(index: int) -> str:
+    """Pick a varied shot type for an interior shot in the sequence."""
+    return _SHOT_TYPE_CYCLE[(index - 1) % len(_SHOT_TYPE_CYCLE)]
 
 
 class ProductionPipeline:
@@ -58,7 +66,7 @@ class ProductionPipeline:
                     style=request.style,
                 )
             )
-            unified_prompt = fusion_result.scene_composition
+            unified_prompt = fusion_result.unified_prompt.lpd_text
             stages.append(PipelineStage(
                 stage="fusion", status="completed",
                 duration_ms=round((time.perf_counter() - t1) * 1000, 1),
@@ -72,7 +80,9 @@ class ProductionPipeline:
             ParameterInjectionRequest(
                 prompt=unified_prompt,
                 sketch_notes=request.sketch_notes,
+                constraints=request.constraints or BridgeConstraints(),
                 style=request.style,
+                generation_params=request.generation_params or BridgeGenerationParams(),
                 target_duration=request.target_duration,
                 aspect_ratio=request.aspect_ratio,
             )
@@ -87,20 +97,23 @@ class ProductionPipeline:
         shot_types = (
             [{"shot_index": 0, "shot_type": "wide"}]
             + [
-                {"shot_index": i, "shot_type": "medium"}
-                for i in range(1, min(request.shot_count - 1, request.shot_count))
+                {"shot_index": i, "shot_type": _rotate_shot_type(i)}
+                for i in range(1, request.shot_count - 1)
             ]
             + [{"shot_index": request.shot_count - 1, "shot_type": "close-up"}]
         ) if request.shot_count >= 3 else [
-            {"shot_index": i, "shot_type": "wide"} for i in range(request.shot_count)
-        ]
+            {"shot_index": 0, "shot_type": "wide"},
+            {"shot_index": 1, "shot_type": "close-up"},
+        ][:request.shot_count]
 
         shot_result = await self._chainer.chain(
             ShotSequenceRequest(
                 anchor=request.prompt[:100],
                 base_prompt=unified_prompt,
                 sketch_notes=request.sketch_notes,
+                constraints=request.constraints,
                 style=request.style,
+                generation_params=request.generation_params,
                 shots=shot_types,
             )
         )
@@ -116,7 +129,10 @@ class ProductionPipeline:
             fb_result = await self._feedback.run(
                 FeedbackRequest(
                     prompt=first_shot.bridge_response.lpd_text,
+                    sketch_notes=request.sketch_notes,
+                    constraints=request.constraints or BridgeConstraints(),
                     style=request.style,
+                    generation_params=request.generation_params or BridgeGenerationParams(),
                     max_iterations=request.max_feedback_iterations,
                 )
             )

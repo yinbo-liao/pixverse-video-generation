@@ -255,8 +255,18 @@ class FeedbackLoop:
             return None
         # Check for repeated descriptors (proxy for anchor consistency)
         words = re.findall(r"[a-z]{4,}", text_lower)
-        repeated = {w for w in words if words.count(w) >= 2}
-        if len(repeated) < 3:
+        if not words:
+            return None
+        unique = set(words)
+        if len(unique) < 2:
+            return None
+        # Count occurrences efficiently with a single pass
+        from collections import Counter
+        counts = Counter(words)
+        repeated = {w for w, c in counts.items() if c >= 2}
+        # Flag when fewer than 15% of unique words repeat — weak anchoring
+        repeat_ratio = len(repeated) / len(unique)
+        if repeat_ratio < 0.15:
             return ArtifactFinding(
                 type=ArtifactType.facial_drift,
                 severity=0.7,
@@ -495,10 +505,7 @@ class FeedbackLoop:
             report = self._analyze_artifacts(current_text)
             history.append(report)
 
-        # Build the bridge response for the final state
-        sc_response = await self._sc_client.generate(bridge_req)
-        lpd_prompt = self._transformer.transform(bridge_req, sc_response)
-
+        # Build the bridge response from the FINAL state (not re-generating from original)
         bridge_resp = BridgeResponse(
             generation_id=sc_response.get("generation_id", ""),
             original_prompt=bridge_req.prompt,

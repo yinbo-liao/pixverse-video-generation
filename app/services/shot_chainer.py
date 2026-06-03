@@ -15,7 +15,13 @@ from __future__ import annotations
 
 import logging
 
-from app.schemas.bridge import BridgeConstraints, BridgeGenerationParams, BridgeRequest, BridgeStyle
+from app.schemas.bridge import (
+    BridgeConstraints,
+    BridgeGenerationParams,
+    BridgeRequest,
+    BridgeResponse,
+    BridgeStyle,
+)
 from app.schemas.shot_sequence import (
     ShotResult,
     ShotSequenceRequest,
@@ -96,8 +102,6 @@ class ShotChainer:
             optimized_text = sc_response.get("text", "")
             optimized_texts.append(optimized_text)
 
-            from app.schemas.bridge import BridgeResponse
-
             bridge_resp = BridgeResponse(
                 generation_id=sc_response.get("generation_id", ""),
                 original_prompt=bridge_req.prompt,
@@ -146,7 +150,7 @@ class ShotChainer:
 
         valid_drifts = [d for d in drifts if d is not None]
         avg_drift = sum(valid_drifts) / len(valid_drifts) if valid_drifts else 0.0
-        coherence_score = max(0.0, 1.0 - avg_drift)
+        coherence_score = max(0.0, min(1.0, 1.0 - avg_drift))
 
         return ShotSequenceResponse(
             anchor=request.anchor,
@@ -197,9 +201,14 @@ class ShotChainer:
 
         if shot_spec.style_overrides is not None:
             overrides = shot_spec.style_overrides
-            resolved_formality = overrides.formality
-            resolved_enthusiasm = overrides.enthusiasm
-            resolved_technical_depth = overrides.technical_depth
+            # Only apply fields that were explicitly set (not inherited defaults)
+            override_dict = overrides.model_dump(exclude_unset=True)
+            if "formality" in override_dict:
+                resolved_formality = override_dict["formality"]
+            if "enthusiasm" in override_dict:
+                resolved_enthusiasm = override_dict["enthusiasm"]
+            if "technical_depth" in override_dict:
+                resolved_technical_depth = override_dict["technical_depth"]
 
         shot_style = BridgeStyle(
             formality=resolved_formality,

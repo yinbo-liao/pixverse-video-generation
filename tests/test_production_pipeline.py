@@ -53,6 +53,35 @@ class TestProductionPipeline:
         # feedback skipped (max_iterations=0)
         assert response.stages[3].status == "skipped"
 
+    async def test_fusion_uses_lpd_text_not_scene_composition(self, production_pipeline):
+        """After fusion, downstream stages receive actual LPD text, not meta-layout."""
+        from app.schemas.concept_fusion import ConceptInput
+        from app.schemas.production_pipeline import PipelineRequest
+
+        req = PipelineRequest(
+            prompt="A futuristic city scene",
+            concepts=[
+                ConceptInput(prompt="a flying car", role="foreground", weight=1.0),
+                ConceptInput(prompt="neon skyscrapers", role="background", weight=0.7),
+            ],
+            unifying_theme="cyberpunk",
+            shot_count=2,
+            max_feedback_iterations=0,
+        )
+        response = await production_pipeline.run(req)
+
+        # The parameter injection's bridge response should contain narrative text,
+        # NOT the spatial composition meta-instruction "Foreground: ... Background: ..."
+        lpd_text = response.parameter_result.bridge_response.lpd_text
+        assert not lpd_text.startswith("Foreground:"), (
+            f"Pipeline should use fused LPD text, not scene_composition. Got: {lpd_text[:100]}"
+        )
+        # The shot sequence anchor should not start with "Foreground:"
+        anchor = response.shot_sequence_result.anchor
+        assert not anchor.startswith("Foreground:"), (
+            f"Shot anchor should not be scene_composition. Got: {anchor}"
+        )
+
     async def test_pipeline_credit_estimation(self, production_pipeline):
         """Credit cost is estimated based on duration and shot count."""
         from app.schemas.production_pipeline import PipelineRequest
