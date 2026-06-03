@@ -3,143 +3,352 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PixVerse Bridge — Test Console</title>
+<title>PixVerse Bridge — Prompt Generator</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }
-.header { background: #1a1a2e; border-bottom: 1px solid #2a2a4a; padding: 20px 24px; }
-.header h1 { font-size: 22px; color: #7c5ce7; }
-.header p { color: #888; font-size: 13px; margin-top: 4px; }
-.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-.endpoint-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-.card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 10px; padding: 20px; cursor: pointer; transition: border-color 0.2s; }
-.card:hover { border-color: #7c5ce7; }
-.card.active { border-color: #7c5ce7; background: #1e1e36; }
-.card h3 { font-size: 15px; color: #c0b0f0; margin-bottom: 4px; }
-.card .method { font-size: 11px; color: #7c5ce7; font-weight: 600; }
-.card p { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.4; }
-.editor-panel { display: none; margin-top: 20px; background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 10px; padding: 20px; }
-.editor-panel.visible { display: block; }
-.editor-panel h2 { font-size: 16px; margin-bottom: 12px; color: #7c5ce7; }
-textarea { width: 100%; height: 200px; background: #0f0f1a; border: 1px solid #2a2a4a; border-radius: 6px; color: #e0e0e0; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 13px; padding: 14px; resize: vertical; }
-.btn-row { display: flex; gap: 10px; margin-top: 12px; }
-button { padding: 10px 20px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-send { background: #7c5ce7; color: #fff; }
-.btn-send:hover { background: #6a4bd4; }
-.btn-fill { background: #2a2a4a; color: #c0b0f0; }
-.btn-fill:hover { background: #3a3a5a; }
-.response-area { display: none; margin-top: 16px; }
-.response-area.visible { display: block; }
-.response-area h3 { font-size: 14px; margin-bottom: 8px; }
-.response-area .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
-.response-area .status.ok { background: #1a4a1a; color: #4ae04a; }
-.response-area .status.err { background: #4a1a1a; color: #e04a4a; }
-pre { background: #0f0f1a; border: 1px solid #2a2a4a; border-radius: 6px; padding: 14px; overflow-x: auto; font-size: 12px; max-height: 400px; overflow-y: auto; color: #c0b0f0; }
-.tags { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
-.tag { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
-.tag.post { background: #4a2a1a; color: #e08a4a; }
-.tag.get { background: #1a4a2a; color: #4ae08a; }
+
+.header { background: linear-gradient(135deg, #1a1a2e 0%, #2a1a3e 100%); border-bottom: 1px solid #3a2a5a; padding: 24px 28px; }
+.header .logo { display: flex; align-items: center; gap: 12px; }
+.header .icon { width: 36px; height: 36px; background: #7c5ce7; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.header h1 { font-size: 22px; color: #e0d0ff; }
+.header p { color: #9988bb; font-size: 13px; margin-top: 4px; }
+
+.container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+/* Mode tabs */
+.mode-tabs { display: flex; gap: 2px; margin-bottom: 20px; background: #1a1a2e; border-radius: 10px; padding: 4px; }
+.mode-tab { flex: 1; text-align: center; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: #888; transition: all 0.2s; }
+.mode-tab:hover { color: #c0b0f0; }
+.mode-tab.active { background: #7c5ce7; color: #fff; }
+
+/* Input panel */
+.input-panel { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.input-panel label { display: block; font-size: 13px; font-weight: 600; color: #c0b0f0; margin-bottom: 6px; }
+.input-panel textarea, .input-panel input, .input-panel select { width: 100%; background: #0f0f1a; border: 1px solid #2a2a4a; border-radius: 6px; color: #e0e0e0; font-family: inherit; font-size: 13px; padding: 10px 14px; margin-bottom: 12px; resize: vertical; }
+.input-panel textarea:focus, .input-panel input:focus, .input-panel select:focus { outline: none; border-color: #7c5ce7; }
+.input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.input-row label { font-size: 11px; color: #888; }
+.slider-val { font-size: 12px; color: #7c5ce7; font-weight: 600; }
+
+.btn-row { display: flex; gap: 10px; margin-top: 8px; }
+.btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn-primary { background: #7c5ce7; color: #fff; flex: 1; }
+.btn-primary:hover { background: #6a4bd4; transform: translateY(-1px); }
+.btn-ghost { background: #2a2a4a; color: #c0b0f0; }
+.btn-ghost:hover { background: #3a3a5a; }
+
+/* Result panel */
+.result-panel { display: none; }
+.result-panel.visible { display: block; }
+
+.prompt-box { background: #111828; border: 2px solid #7c5ce7; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.prompt-box .label { font-size: 11px; color: #7c5ce7; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.prompt-box .text { font-size: 15px; color: #e8e0ff; line-height: 1.6; white-space: pre-wrap; word-break: break-word; font-style: italic; }
+.prompt-box .shot-label { font-size: 12px; color: #7c5ce7; margin-top: 12px; margin-bottom: 4px; font-weight: 600; }
+
+.copy-bar { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+.btn-copy { background: #7c5ce7; color: #fff; padding: 14px 28px; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 8px; }
+.btn-copy:hover { background: #6a4bd4; }
+.btn-copy.copied { background: #1a8a3a; }
+
+.meta-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+.meta-chip { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.meta-chip.good { background: #1a3a1a; color: #4ae04a; }
+.meta-chip.warn { background: #3a2a1a; color: #e0a04a; }
+.meta-chip.info { background: #1a2a3a; color: #4a80e0; }
+
+.details-toggle { margin-top: 16px; font-size: 12px; color: #888; cursor: pointer; text-decoration: underline; }
+.details-toggle:hover { color: #c0b0f0; }
+.details-content { display: none; margin-top: 8px; }
+.details-content.open { display: block; }
+.details-content pre { background: #0f0f1a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px; font-size: 11px; max-height: 300px; overflow: auto; color: #9988bb; }
+
+.error-box { background: #2a1a1a; border: 2px solid #e04a4a; border-radius: 12px; padding: 16px; color: #e08a8a; }
+.instructions { background: #1a2a2e; border: 1px solid #2a4a5a; border-radius: 10px; padding: 16px; margin-top: 16px; font-size: 13px; color: #88aabb; line-height: 1.5; }
+.instructions strong { color: #4ac0e0; }
+
+/* History */
+.history { margin-top: 24px; }
+.history h3 { font-size: 14px; color: #888; margin-bottom: 8px; }
+.history-item { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.history-item:hover { border-color: #7c5ce7; }
+.history-item .time { color: #666; }
+.history-item .mode-name { color: #c0b0f0; }
 </style>
 </head>
 <body>
+
 <div class="header">
-  <h1>PixVerse Bridge — Test Console</h1>
-  <p>Select an endpoint, edit the JSON payload, and send. Server: localhost:8001</p>
-</div>
-<div class="container">
-  <div class="endpoint-grid" id="endpointGrid"></div>
-  <div class="editor-panel" id="editorPanel">
-    <h2 id="editorTitle">Request</h2>
-    <textarea id="requestBody" spellcheck="false"></textarea>
-    <div class="btn-row">
-      <button class="btn-send" onclick="sendRequest()">Send Request</button>
-      <button class="btn-fill" onclick="fillDefaults()">Fill Defaults</button>
-    </div>
-    <div class="response-area" id="responseArea">
-      <h3>Response <span class="status" id="statusBadge"></span></h3>
-      <pre id="responseBody"></pre>
+  <div class="logo">
+    <div class="icon">&#9654;</div>
+    <div>
+      <h1>PixVerse Bridge &mdash; Prompt Generator</h1>
+      <p>Describe your scene below. We optimize your prompt for PixVerse V6. Copy &amp; paste into PixVerse chat to create your video.</p>
     </div>
   </div>
 </div>
 
+<div class="container">
+
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <div class="mode-tab active" data-mode="generate">Single Prompt</div>
+    <div class="mode-tab" data-mode="shot-sequence">Multi-Shot Scene</div>
+    <div class="mode-tab" data-mode="pipeline">Full Production</div>
+  </div>
+
+  <!-- Input panel -->
+  <div class="input-panel" id="inputPanel">
+    <label for="promptText">Describe your scene</label>
+    <textarea id="promptText" rows="3" placeholder="Example: A steaming cup of coffee on a wooden table, morning sunlight through window, camera slowly pushes in..."></textarea>
+
+    <label for="sketchNotes">Scene details / world context (optional)</label>
+    <textarea id="sketchNotes" rows="2" placeholder="Example: Cozy cafe interior. Warm morning light. Steam rising from cup. Wood grain texture on table."></textarea>
+
+    <label>Tone / Lighting Mood</label>
+    <select id="toneSelect">
+      <option value="">None (default)</option>
+      <option value="warm">Warm</option>
+      <option value="cold">Cold</option>
+      <option value="soft">Soft</option>
+      <option value="dramatic">Dramatic</option>
+      <option value="noir">Noir</option>
+      <option value="neon">Neon</option>
+      <option value="golden">Golden Hour</option>
+      <option value="dark">Dark / Moody</option>
+      <option value="natural">Natural</option>
+      <option value="romantic">Romantic</option>
+    </select>
+
+    <div class="input-row">
+      <div>
+        <label>Camera Style: <span class="slider-val" id="formalityVal">Standard</span></label>
+        <input type="range" min="0" max="100" value="50" id="formalitySlider" oninput="updateSliders()">
+      </div>
+      <div>
+        <label>Motion Level: <span class="slider-val" id="enthusiasmVal">Natural</span></label>
+        <input type="range" min="0" max="100" value="50" id="enthusiasmSlider" oninput="updateSliders()">
+      </div>
+      <div>
+        <label>Quality: <span class="slider-val" id="depthVal">Standard</span></label>
+        <input type="range" min="0" max="100" value="50" id="depthSlider" oninput="updateSliders()">
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="sendRequest()">&#x2728; Generate PixVerse Prompt</button>
+  </div>
+
+  <!-- Result panel -->
+  <div class="result-panel" id="resultPanel">
+    <div id="promptContainer"></div>
+    <div id="metaContainer"></div>
+    <span class="details-toggle" onclick="toggleDetails()">&#x25BC; Show full response JSON</span>
+    <div class="details-content" id="detailsContent"><pre id="detailsPre"></pre></div>
+  </div>
+
+  <div id="errorContainer"></div>
+
+  <!-- How to use -->
+  <div class="instructions">
+    <strong>&#x1F3AC; How to create your video:</strong><br>
+    <strong>1.</strong> Describe your scene above and click <strong>Generate PixVerse Prompt</strong><br>
+    <strong>2.</strong> Click <strong>Copy for PixVerse</strong> on the generated prompt<br>
+    <strong>3.</strong> Go to <a href="https://pixverse.ai" style="color:#4ac0e0" target="_blank">pixverse.ai</a> &rarr; paste into the chat input<br>
+    <strong>4.</strong> Click the Create button &mdash; PixVerse V6 renders your video in 1080p
+  </div>
+
+  <!-- History -->
+  <div class="history" id="historyPanel" style="display:none">
+    <h3>Recent Generations</h3>
+    <div id="historyList"></div>
+  </div>
+
+</div>
+
 <script>
 const BASE = 'http://localhost:8001';
+let currentMode = 'generate';
+let history = [];
+let lastResponse = null;
 
-const endpoints = [
-  { id: 'generate', title: 'Generate (Single Prompt)', method: 'POST', path: '/v1/bridge/generate',
-    desc: 'Transform a narrative concept into a PixVerse V6 LPD prompt.', phase: 'Phase 1',
-    defaults: { prompt: 'A steaming cup of coffee on a wooden table at sunrise', style: { enthusiasm: 0.1, formality: 0.5 }, constraints: { tone: 'soft' } } },
-  { id: 'shot-sequence', title: 'Shot Sequence (Multi-Shot)', method: 'POST', path: '/v1/bridge/shot-sequence',
-    desc: 'Generate a multi-shot sequence with drone establishing → medium detail → close-up.', phase: 'Phase 2',
-    defaults: { anchor: 'a red Ferrari', base_prompt: 'speeding along a coastal highway at sunset', shots: [ { shot_index: 0, shot_type: 'wide' }, { shot_index: 1, shot_type: 'medium' }, { shot_index: 2, shot_type: 'close-up' } ] } },
-  { id: 'feedback-loop', title: 'Feedback Loop (3-Gen Rule)', method: 'POST', path: '/v1/bridge/feedback-loop',
-    desc: 'Generate 3 variations, detect 6 artifact types, refine, and select best.', phase: 'Phase 3',
-    defaults: { prompt: 'A detective runs frantically through a flashing neon alley at night', style: { enthusiasm: 0.7 }, max_iterations: 2 } },
-  { id: 'parameter-injection', title: 'Parameter Injection', method: 'POST', path: '/v1/bridge/parameter-injection',
-    desc: 'Map style vectors to camera, lens, motion, lighting, and render settings.', phase: 'Phase 4',
-    defaults: { prompt: 'A fashion model walks down a runway', style: { formality: 0.9, enthusiasm: 0.3, technical_depth: 0.8 }, aspect_ratio: '9:16' } },
-  { id: 'concept-fusion', title: 'Concept Fusion', method: 'POST', path: '/v1/bridge/concept-fusion',
-    desc: 'Blend 2-5 concepts into one unified scene with foreground/background roles.', phase: 'Phase 4',
-    defaults: { concepts: [ { prompt: 'a sleek sports car', role: 'foreground', weight: 1.2 }, { prompt: 'a neon-lit city at night', role: 'background', weight: 0.8 } ], unifying_theme: 'cyberpunk racing' } },
-  { id: 'production-pipeline', title: 'Production Pipeline (E2E)', method: 'POST', path: '/v1/bridge/production-pipeline',
-    desc: 'Full workflow: Concept Fusion → Parameter Injection → Shot Sequence → Feedback.', phase: 'Phase 5',
-    defaults: { prompt: 'A lone samurai walks through a bamboo forest at dawn', concepts: [ { prompt: 'a weathered samurai in worn armor', role: 'foreground', weight: 1.2 }, { prompt: 'misty bamboo forest', role: 'background', weight: 0.8 } ], style: { formality: 0.7, enthusiasm: 0.3 }, target_duration: 8, shot_count: 3, max_feedback_iterations: 1 } }
-];
+// Mode configs
+const modes = {
+  'generate': {
+    path: '/v1/bridge/generate',
+    buildBody: () => ({ prompt: get('promptText'), sketch_notes: get('sketchNotes') || null, constraints: { tone: get('toneSelect') || null }, style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider'), technical_depth: slider('depthSlider') } }),
+    extract: r => [{ label: 'PixVerse Prompt', text: r.lpd_text, meta: r.metadata }],
+  },
+  'shot-sequence': {
+    path: '/v1/bridge/shot-sequence',
+    buildBody: () => ({ anchor: get('promptText'), base_prompt: get('sketchNotes') || get('promptText'), sketch_notes: get('sketchNotes') || null, constraints: { tone: get('toneSelect') || null }, style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider') }, shots: [ {shot_index:0,shot_type:'wide',transition_notes:'Fade in'}, {shot_index:1,shot_type:'medium',transition_notes:'Cut on action'}, {shot_index:2,shot_type:'close-up',transition_notes:'Slow push-in'} ] }),
+    extract: r => r.shots.map((s,i) => ({ label: `Shot ${i+1} (${s.shot_type})`, text: s.bridge_response.lpd_text, meta: { drift: s.drift_from_previous, flagged: s.flagged } })),
+    multi: true,
+  },
+  'pipeline': {
+    path: '/v1/bridge/production-pipeline',
+    buildBody: () => ({ prompt: get('promptText'), sketch_notes: get('sketchNotes') || null, style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider'), technical_depth: slider('depthSlider') }, target_duration: 8, shot_count: 3, max_feedback_iterations: 1 }),
+    extract: r => (r.final_lpd_prompts || []).map((p,i) => ({ label: `Final Prompt ${i+1}`, text: p, meta: r.stages ? { stages: r.stages.map(s=>s.stage+':'+s.status).join(', '), credits: r.estimated_credits, time: r.total_duration_ms+'ms' } : {} })),
+    multi: true,
+  },
+};
 
-let activeEndpoint = endpoints[0];
+// Init
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentMode = tab.dataset.mode;
+    updateLabels();
+    document.getElementById('resultPanel').classList.remove('visible');
+    document.getElementById('errorContainer').innerHTML = '';
+  });
+});
+updateLabels();
 
-function renderGrid() {
-  const grid = document.getElementById('endpointGrid');
-  grid.innerHTML = endpoints.map((ep, i) => `
-    <div class="card ${i === 0 ? 'active' : ''}" onclick="selectEndpoint(${i})">
-      <span class="method">${ep.method}</span>
-      <h3>${ep.title}</h3>
-      <p>${ep.desc}</p>
-      <div class="tags">
-        <span class="tag post">${ep.method}</span>
-        <span class="tag get">${ep.phase}</span>
-      </div>
+function get(id) { return document.getElementById(id).value.trim(); }
+function slider(id) { return parseInt(document.getElementById(id).value) / 100; }
+
+function updateSliders() {
+  updateLabels();
+}
+
+function updateLabels() {
+  const mode = currentMode;
+  const f = slider('formalitySlider');
+  const e = slider('enthusiasmSlider');
+  const d = slider('depthSlider');
+
+  const camLabels = ['Handheld','Shoulder-rig','Tripod','Slider/Dolly','Steadicam','Crane/Jib','Technocrane'];
+  const motLabels = ['Static','Slow Motion','Relaxed','Natural','Steady','Dynamic','Explosive'];
+  const depLabels = ['Draft (540p)','Standard (720p)','Standard','High (1080p)','High','Cinematic (4K)','Cinematic (4K)'];
+  document.getElementById('formalityVal').textContent = camLabels[Math.min(Math.floor(f*7), 6)];
+  document.getElementById('enthusiasmVal').textContent = motLabels[Math.min(Math.floor(e*7), 6)];
+  document.getElementById('depthVal').textContent = depLabels[Math.min(Math.floor(d*7), 6)];
+
+  if (mode === 'shot-sequence') {
+    document.getElementById('promptText').parentNode.querySelector('label').textContent = 'Anchor subject (shared across all shots)';
+    document.getElementById('sketchNotes').parentNode.querySelector('label').textContent = 'Scene description / base narrative';
+  } else if (mode === 'pipeline') {
+    document.getElementById('promptText').parentNode.querySelector('label').textContent = 'Describe your scene';
+    document.getElementById('sketchNotes').parentNode.querySelector('label').textContent = 'Scene details / world context (optional)';
+  } else {
+    document.getElementById('promptText').parentNode.querySelector('label').textContent = 'Describe your scene';
+    document.getElementById('sketchNotes').parentNode.querySelector('label').textContent = 'Scene details / world context (optional)';
+  }
+}
+
+async function sendRequest() {
+  const mode = modes[currentMode];
+  document.getElementById('resultPanel').classList.remove('visible');
+  document.getElementById('errorContainer').innerHTML = '';
+  document.getElementById('promptContainer').innerHTML = '<div style="color:#888;padding:20px">Generating...</div>';
+
+  try {
+    const body = mode.buildBody();
+    const res = await fetch(BASE + mode.path, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const json = await res.json();
+
+    if (res.status >= 400) {
+      showError(`Error ${res.status}: ${json.detail || 'Request failed'}`);
+      return;
+    }
+
+    lastResponse = json;
+    const prompts = mode.extract(json);
+    renderPrompts(prompts, mode.multi);
+    renderMeta(json);
+    document.getElementById('detailsPre').textContent = JSON.stringify(json, null, 2);
+    document.getElementById('resultPanel').classList.add('visible');
+    document.getElementById('detailsContent').classList.remove('open');
+
+    // Add to history
+    history.unshift({ time: new Date().toLocaleTimeString(), mode: currentMode, prompts, json });
+    if (history.length > 10) history.pop();
+    renderHistory();
+
+  } catch (e) {
+    showError('Connection failed! Is the server running?<br><br>' + e.message);
+  }
+}
+
+function renderPrompts(prompts, isMulti) {
+  const container = document.getElementById('promptContainer');
+  let html = '';
+  prompts.forEach((p, i) => {
+    html += `
+      <div class="prompt-box">
+        <div class="label">&#x2728; ${p.label}</div>
+        <div class="text">${escapeHtml(p.text)}</div>
+        <div class="copy-bar">
+          <button class="btn-copy" onclick="copyPrompt(this, '${escapeAttr(p.text)}')">&#x1F4CB; Copy for PixVerse</button>
+          ${p.meta && p.meta.flagged ? '<span class="meta-chip warn">&#x26A0; Flagged for review</span>' : ''}
+          ${p.meta && p.meta.drift != null ? `<span class="meta-chip info">Drift: ${p.meta.drift.toFixed(3)}</span>` : ''}
+        </div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderMeta(json) {
+  const mc = document.getElementById('metaContainer');
+  let chips = '';
+  if (json.coherence_score != null) chips += `<span class="meta-chip ${json.coherence_score > 0.7 ? 'good' : 'warn'}">Coherence: ${(json.coherence_score*100).toFixed(0)}%</span>`;
+  if (json.estimated_credits != null) chips += `<span class="meta-chip info">Credits: ${json.estimated_credits}</span>`;
+  if (json.total_duration_ms != null) chips += `<span class="meta-chip info">Time: ${json.total_duration_ms}ms</span>`;
+  if (json.flagged_shots && json.flagged_shots.length > 0) chips += `<span class="meta-chip warn">Flagged shots: ${json.flagged_shots.join(', ')}</span>`;
+  if (json.selected_variation) chips += `<span class="meta-chip good">Best: ${json.selected_variation.variation_type}</span>`;
+  mc.innerHTML = chips ? `<div class="meta-row">${chips}</div>` : '';
+}
+
+function copyPrompt(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✅ Copied! Paste into PixVerse chat';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '📋 Copy for PixVerse'; btn.classList.remove('copied'); }, 2500);
+  });
+}
+
+function showError(msg) {
+  document.getElementById('errorContainer').innerHTML = `<div class="error-box">${msg}</div>`;
+  document.getElementById('resultPanel').classList.remove('visible');
+}
+
+function toggleDetails() {
+  document.getElementById('detailsContent').classList.toggle('open');
+}
+
+function renderHistory() {
+  const panel = document.getElementById('historyPanel');
+  if (history.length === 0) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  document.getElementById('historyList').innerHTML = history.map((h,i) => `
+    <div class="history-item" onclick="restoreHistory(${i})">
+      <span class="mode-name">${h.mode}</span>
+      <span>${h.prompts[0]?.text?.substring(0, 60)}...</span>
+      <span class="time">${h.time}</span>
     </div>
   `).join('');
 }
 
-function selectEndpoint(i) {
-  activeEndpoint = endpoints[i];
-  document.querySelectorAll('.card').forEach((c, j) => c.classList.toggle('active', j === i));
-  document.getElementById('editorPanel').classList.add('visible');
-  document.getElementById('editorTitle').textContent = `${activeEndpoint.method} ${activeEndpoint.path} — ${activeEndpoint.title}`;
-  document.getElementById('requestBody').value = JSON.stringify(activeEndpoint.defaults, null, 2);
-  document.getElementById('responseArea').classList.remove('visible');
+function restoreHistory(i) {
+  const h = history[i];
+  document.querySelectorAll('.mode-tab').forEach(t => { t.classList.remove('active'); if (t.dataset.mode === h.mode) t.classList.add('active'); });
+  currentMode = h.mode;
+  updateLabels();
+  lastResponse = h.json;
+  renderPrompts(h.prompts, h.prompts.length > 1);
+  renderMeta(h.json);
+  document.getElementById('detailsPre').textContent = JSON.stringify(h.json, null, 2);
+  document.getElementById('resultPanel').classList.add('visible');
+  document.getElementById('detailsContent').classList.remove('open');
+  document.getElementById('errorContainer').innerHTML = '';
 }
 
-function fillDefaults() {
-  document.getElementById('requestBody').value = JSON.stringify(activeEndpoint.defaults, null, 2);
-  document.getElementById('responseArea').classList.remove('visible');
-}
-
-async function sendRequest() {
-  const area = document.getElementById('responseArea');
-  const pre = document.getElementById('responseBody');
-  const badge = document.getElementById('statusBadge');
-  area.classList.add('visible');
-  pre.textContent = 'Sending...';
-  try {
-    const body = document.getElementById('requestBody').value;
-    const res = await fetch(`${BASE}${activeEndpoint.path}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-    const json = await res.json();
-    pre.textContent = JSON.stringify(json, null, 2);
-    badge.textContent = res.status < 400 ? res.status + ' OK' : res.status + ' Error';
-    badge.className = 'status ' + (res.status < 400 ? 'ok' : 'err');
-  } catch (e) {
-    pre.textContent = 'Connection failed! Is the server running?\n\n' + e.message;
-    badge.textContent = 'Error';
-    badge.className = 'status err';
-  }
-}
-
-renderGrid();
-selectEndpoint(0);
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 </script>
 </body>
 </html>
