@@ -269,11 +269,14 @@ function updateLabels() {
   document.getElementById('enthusiasmVal').textContent = motLabels[Math.min(Math.floor(e*7), 6)];
   document.getElementById('depthVal').textContent = depLabels[Math.min(Math.floor(d*7), 6)];
 
-  const label = document.getElementById('promptText').parentNode.querySelector('label');
+  const textarea = document.getElementById('promptText');
+  const label = textarea.parentNode.querySelector('label');
   if (mode === 'shot-sequence') {
     label.textContent = 'Describe your scene (anchor subject + narrative)';
+    textarea.rows = 5;
   } else {
     label.textContent = 'Describe your scene';
+    textarea.rows = 5;
   }
 }
 
