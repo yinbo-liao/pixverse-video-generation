@@ -93,7 +93,7 @@ class BridgeRequest(BaseModel):
     prompt: str = Field(
         ...,
         min_length=1,
-        max_length=4096,
+        max_length=4980,
         description="Core narrative concept or rough prompt to optimize",
     )
     sketch_notes: str | None = Field(

@@ -65,6 +65,13 @@ body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; c
 .details-content pre { background: #0f0f1a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 14px; font-size: 11px; max-height: 300px; overflow: auto; color: #9988bb; }
 
 .error-box { background: #2a1a1a; border: 2px solid #e04a4a; border-radius: 12px; padding: 16px; color: #e08a8a; }
+.error-box ul { margin: 8px 0 0 18px; line-height: 1.6; }
+.error-box li { margin-bottom: 2px; }
+.char-counter { font-size: 11px; text-align: right; margin-top: -8px; margin-bottom: 10px; color: #666; }
+.char-counter.warn { color: #e0a04a; }
+.char-counter.over { color: #e04a4a; font-weight: 700; }
+.char-limit-msg { display: none; background: #3a2a1a; border: 1px solid #e0a04a; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #e0a04a; margin-bottom: 10px; }
+.char-limit-msg.visible { display: block; }
 .instructions { background: #1a2a2e; border: 1px solid #2a4a5a; border-radius: 10px; padding: 16px; margin-top: 16px; font-size: 13px; color: #88aabb; line-height: 1.5; }
 .instructions strong { color: #4ac0e0; }
 
@@ -101,10 +108,14 @@ body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; c
   <!-- Input panel -->
   <div class="input-panel" id="inputPanel">
     <label for="promptText">Describe your scene</label>
-    <textarea id="promptText" rows="3" placeholder="Example: A steaming cup of coffee on a wooden table, morning sunlight through window, camera slowly pushes in..."></textarea>
+    <textarea id="promptText" rows="3" maxlength="4980" oninput="updateCounters()" placeholder="Example: A steaming cup of coffee on a wooden table, morning sunlight through window, camera slowly pushes in..."></textarea>
+    <div class="char-counter" id="promptCounter"><span id="promptCount">0</span> / 4,980 characters</div>
+    <div class="char-limit-msg" id="promptLimitMsg">⚠️ Scene description is too long. Please shorten to 4,980 characters or fewer.</div>
 
     <label for="sketchNotes">Scene details / world context (optional)</label>
-    <textarea id="sketchNotes" rows="2" placeholder="Example: Cozy cafe interior. Warm morning light. Steam rising from cup. Wood grain texture on table."></textarea>
+    <textarea id="sketchNotes" rows="2" maxlength="12000" oninput="updateCounters()" placeholder="Example: Cozy cafe interior. Warm morning light. Steam rising from cup. Wood grain texture on table."></textarea>
+    <div class="char-counter" id="sketchCounter"><span id="sketchCount">0</span> / 12,000 characters</div>
+    <div class="char-limit-msg" id="sketchLimitMsg">⚠️ Scene details are too long. Please shorten to 12,000 characters or fewer.</div>
 
     <label>Tone / Lighting Mood</label>
     <select id="toneSelect">
@@ -211,6 +222,35 @@ updateLabels();
 function get(id) { return document.getElementById(id).value.trim(); }
 function slider(id) { return parseInt(document.getElementById(id).value) / 100; }
 
+// --- Character counters ---
+const LIMITS = { promptText: 4980, sketchNotes: 12000 };
+
+function updateCounters() {
+  ['promptText', 'sketchNotes'].forEach(id => {
+    const el = document.getElementById(id);
+    const len = el.value.length;
+    const max = LIMITS[id];
+    const pct = len / max;
+    document.getElementById(id === 'promptText' ? 'promptCount' : 'sketchCount').textContent = len.toLocaleString();
+    const counter = document.getElementById(id === 'promptText' ? 'promptCounter' : 'sketchCounter');
+    counter.classList.remove('warn', 'over');
+    if (pct >= 1.0) counter.classList.add('over');
+    else if (pct >= 0.9) counter.classList.add('warn');
+    const msg = document.getElementById(id === 'promptText' ? 'promptLimitMsg' : 'sketchLimitMsg');
+    msg.classList.toggle('visible', len > max);
+  });
+}
+
+function validateInput() {
+  const errors = [];
+  const promptLen = document.getElementById('promptText').value.length;
+  const sketchLen = document.getElementById('sketchNotes').value.length;
+  if (promptLen === 0) errors.push('Scene description is required');
+  if (promptLen > LIMITS.promptText) errors.push(`Scene description is ${promptLen.toLocaleString()} chars — max is ${LIMITS.promptText.toLocaleString()}`);
+  if (sketchLen > LIMITS.sketchNotes) errors.push(`Scene details are ${sketchLen.toLocaleString()} chars — max is ${LIMITS.sketchNotes.toLocaleString()}`);
+  return errors;
+}
+
 function updateSliders() {
   updateLabels();
 }
@@ -241,6 +281,13 @@ function updateLabels() {
 }
 
 async function sendRequest() {
+  // Validate input lengths
+  const errors = validateInput();
+  if (errors.length > 0) {
+    showError('Please fix the following issues:', errors);
+    return;
+  }
+
   const mode = modes[currentMode];
   document.getElementById('resultPanel').classList.remove('visible');
   document.getElementById('errorContainer').innerHTML = '';
@@ -252,7 +299,7 @@ async function sendRequest() {
     const json = await res.json();
 
     if (res.status >= 400) {
-      showError(`Error ${res.status}: ${json.detail || 'Request failed'}`);
+      showError(formatError(res.status, json), null);
       return;
     }
 
@@ -311,8 +358,33 @@ function copyPrompt(btn, text) {
   });
 }
 
-function showError(msg) {
-  document.getElementById('errorContainer').innerHTML = `<div class="error-box">${msg}</div>`;
+function formatError(status, json) {
+  // Handle Pydantic validation errors: detail is an array of {loc, msg, type}
+  let msg = `Error ${status}`;
+  if (json.detail) {
+    if (Array.isArray(json.detail)) {
+      msg += ': ' + json.detail.map(e => {
+        const field = (e.loc || []).filter(l => l !== 'body').join('.') || 'request';
+        return `<strong>${field}</strong>: ${e.msg}`;
+      }).join('<br>');
+    } else if (typeof json.detail === 'string') {
+      msg += ': ' + json.detail;
+    } else {
+      msg += ': ' + JSON.stringify(json.detail);
+    }
+  } else if (json.message) {
+    msg += ': ' + json.message;
+  }
+  return msg;
+}
+
+function showError(title, details) {
+  let html = `<div class="error-box"><strong>${title}</strong>`;
+  if (details && details.length > 0) {
+    html += '<ul>' + details.map(d => `<li>${d}</li>`).join('') + '</ul>';
+  }
+  html += '</div>';
+  document.getElementById('errorContainer').innerHTML = html;
   document.getElementById('resultPanel').classList.remove('visible');
 }
 
