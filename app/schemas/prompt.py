@@ -117,14 +117,15 @@ class PixVersePrompt(BaseModel):
     )
     audio: Audio = Field(default_factory=Audio, description="Audio cues")
 
-    def to_lpd_text(self) -> str:
-        """Render the full LPD format string for PixVerse V6.
+    def to_lpd_text(self, max_length: int = 4980) -> str:
+        """Render a clean, polished LPD prompt for PixVerse V6.
 
-        Joins all non-empty components with ". " and appends a final period.
-        The PixVerse V6 prompt structure:
-          [Subject]. [Action/Motion]. [Environment]. [Lighting]. [Camera/Lens]. [Audio].
+        Assembles non-empty components into flowing prose. Each component is
+        stripped of leading/trailing punctuation, then joined with ". ".
+        Double-periods and other artifacts are cleaned up.
 
-        Empty components are silently skipped so the output is always clean.
+        If the result exceeds max_length, it is truncated at the last
+        complete sentence boundary within the limit.
         """
         parts: list[str] = [
             self.subject.description,
@@ -134,4 +135,38 @@ class PixVersePrompt(BaseModel):
             self.camera_lens.description,
             self.audio.description,
         ]
-        return ". ".join(p for p in parts if p) + "."
+        # Normalize each part: strip whitespace and trailing punctuation
+        cleaned: list[str] = []
+        for p in parts:
+            p = p.strip().strip(".").strip().strip(",").strip()
+            if p:
+                cleaned.append(p)
+        if not cleaned:
+            return "."
+
+        text = ". ".join(cleaned) + "."
+        # Capitalize first letter
+        text = text[0].upper() + text[1:] if text else text
+        # Fix double periods
+        while ".." in text:
+            text = text.replace("..", ".")
+        # Fix period-space-period
+        text = text.replace(". .", ".")
+        # Fix missing space after period
+        import re
+        text = re.sub(r"\.(\S)", r". \1", text)
+
+        # Truncate to max_length at last sentence boundary
+        if len(text) > max_length:
+            truncated = text[:max_length]
+            last_period = truncated.rfind(".")
+            if last_period > max_length // 2:
+                text = truncated[: last_period + 1]
+            else:
+                text = truncated[:max_length].rstrip() + "."
+
+        return text
+
+    def to_copy_text(self) -> str:
+        """Return the polished LPD text ready to paste into PixVerse chat."""
+        return self.to_lpd_text()

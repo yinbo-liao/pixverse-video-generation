@@ -47,10 +47,14 @@ body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; c
 .prompt-box .text { font-size: 15px; color: #e8e0ff; line-height: 1.6; white-space: pre-wrap; word-break: break-word; font-style: italic; }
 .prompt-box .shot-label { font-size: 12px; color: #7c5ce7; margin-top: 12px; margin-bottom: 4px; font-weight: 600; }
 
-.copy-bar { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+.copy-bar { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
 .btn-copy { background: #7c5ce7; color: #fff; padding: 14px 28px; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 8px; }
 .btn-copy:hover { background: #6a4bd4; }
 .btn-copy.copied { background: #1a8a3a; }
+.output-len { font-size: 12px; color: #888; }
+.output-len.warn { color: #e0a04a; }
+.truncated-note { display: none; font-size: 11px; color: #e0a04a; margin-top: 6px; }
+.truncated-note.visible { display: block; }
 
 .meta-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
 .meta-chip { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
@@ -323,15 +327,20 @@ async function sendRequest() {
 
 function renderPrompts(prompts, isMulti) {
   const container = document.getElementById('promptContainer');
+  const MAX_OUTPUT = 4980;
   let html = '';
   prompts.forEach((p, i) => {
+    const len = p.text.length;
+    const truncated = len >= MAX_OUTPUT;
+    const lenClass = len > MAX_OUTPUT * 0.9 ? 'warn' : '';
     html += `
       <div class="prompt-box">
-        <div class="label">&#x2728; ${p.label}</div>
+        <div class="label">&#x2728; ${p.label} <span class="output-len ${lenClass}">(${len.toLocaleString()} / ${MAX_OUTPUT.toLocaleString()} chars)</span></div>
         <div class="text">${escapeHtml(p.text)}</div>
+        <div class="truncated-note ${truncated ? 'visible' : ''}">&#x26A0; Prompt was truncated to ${MAX_OUTPUT.toLocaleString()} characters at a sentence boundary.</div>
         <div class="copy-bar">
           <button class="btn-copy" onclick="copyPrompt(this, '${escapeAttr(p.text)}')">&#x1F4CB; Copy for PixVerse</button>
-          ${p.meta && p.meta.flagged ? '<span class="meta-chip warn">&#x26A0; Flagged for review</span>' : ''}
+          ${p.meta && p.meta.flagged ? '<span class="meta-chip warn">&#x26A0; Flagged</span>' : ''}
           ${p.meta && p.meta.drift != null ? `<span class="meta-chip info">Drift: ${p.meta.drift.toFixed(3)}</span>` : ''}
         </div>
       </div>`;
