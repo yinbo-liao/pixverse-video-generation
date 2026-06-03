@@ -112,14 +112,9 @@ body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; c
   <!-- Input panel -->
   <div class="input-panel" id="inputPanel">
     <label for="promptText">Describe your scene</label>
-    <textarea id="promptText" rows="3" maxlength="4980" oninput="updateCounters()" placeholder="Example: A steaming cup of coffee on a wooden table, morning sunlight through window, camera slowly pushes in..."></textarea>
-    <div class="char-counter" id="promptCounter"><span id="promptCount">0</span> / 4,980 characters</div>
-    <div class="char-limit-msg" id="promptLimitMsg">⚠️ Scene description is too long. Please shorten to 4,980 characters or fewer.</div>
-
-    <label for="sketchNotes">Scene details / world context (optional)</label>
-    <textarea id="sketchNotes" rows="2" maxlength="12000" oninput="updateCounters()" placeholder="Example: Cozy cafe interior. Warm morning light. Steam rising from cup. Wood grain texture on table."></textarea>
-    <div class="char-counter" id="sketchCounter"><span id="sketchCount">0</span> / 12,000 characters</div>
-    <div class="char-limit-msg" id="sketchLimitMsg">⚠️ Scene details are too long. Please shorten to 12,000 characters or fewer.</div>
+    <textarea id="promptText" rows="5" maxlength="12000" oninput="updateCounters()" placeholder="Describe your scene in detail — subject, setting, lighting, camera angle, motion, and mood. The more detail you provide, the better the result.&#10;&#10;Example: A steaming cup of coffee on a wooden table. Morning sunlight streams through a nearby window casting warm golden tones. Steam rises gently from the ceramic cup. Camera slowly pushes in. Soft ambient cafe sounds in the background."></textarea>
+    <div class="char-counter" id="promptCounter"><span id="promptCount">0</span> / 12,000 characters</div>
+    <div class="char-limit-msg" id="promptLimitMsg">⚠️ Scene description is too long. Please shorten to 12,000 characters or fewer.</div>
 
     <label>Tone / Lighting Mood</label>
     <select id="toneSelect">
@@ -193,18 +188,18 @@ let lastResponse = null;
 const modes = {
   'generate': {
     path: '/v1/bridge/generate',
-    buildBody: () => ({ prompt: get('promptText'), sketch_notes: get('sketchNotes') || null, constraints: { tone: get('toneSelect') || null }, style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider'), technical_depth: slider('depthSlider') } }),
+    buildBody: () => ({ ...getSceneText(), constraints: { tone: get('toneSelect') || null }, style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider'), technical_depth: slider('depthSlider') } }),
     extract: r => [{ label: 'PixVerse Prompt', text: r.lpd_text, meta: r.metadata }],
   },
   'shot-sequence': {
     path: '/v1/bridge/shot-sequence',
-    buildBody: () => ({ anchor: get('promptText'), base_prompt: get('sketchNotes') || get('promptText'), sketch_notes: get('sketchNotes') || null, constraints: { tone: get('toneSelect') || null }, style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider') }, shots: [ {shot_index:0,shot_type:'wide',transition_notes:'Fade in'}, {shot_index:1,shot_type:'medium',transition_notes:'Cut on action'}, {shot_index:2,shot_type:'close-up',transition_notes:'Slow push-in'} ] }),
+    buildBody: () => { const s = getSceneText(); return { anchor: s.prompt, base_prompt: s.sketch_notes || s.prompt, sketch_notes: s.sketch_notes, constraints: { tone: get('toneSelect') || null }, style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider') }, shots: [ {shot_index:0,shot_type:'wide',transition_notes:'Fade in'}, {shot_index:1,shot_type:'medium',transition_notes:'Cut on action'}, {shot_index:2,shot_type:'close-up',transition_notes:'Slow push-in'} ] }; },
     extract: r => r.shots.map((s,i) => ({ label: `Shot ${i+1} (${s.shot_type})`, text: s.bridge_response.lpd_text, meta: { drift: s.drift_from_previous, flagged: s.flagged } })),
     multi: true,
   },
   'pipeline': {
     path: '/v1/bridge/production-pipeline',
-    buildBody: () => ({ prompt: get('promptText'), sketch_notes: get('sketchNotes') || null, style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider'), technical_depth: slider('depthSlider') }, target_duration: 8, shot_count: 3, max_feedback_iterations: 1 }),
+    buildBody: () => ({ ...getSceneText(), style: { formality: slider('formalitySlider'), enthusiasm: slider('enthusiasmSlider'), technical_depth: slider('depthSlider') }, target_duration: 8, shot_count: 3, max_feedback_iterations: 1 }),
     extract: r => (r.final_lpd_prompts || []).map((p,i) => ({ label: `Final Prompt ${i+1}`, text: p, meta: r.stages ? { stages: r.stages.map(s=>s.stage+':'+s.status).join(', '), credits: r.estimated_credits, time: r.total_duration_ms+'ms' } : {} })),
     multi: true,
   },
@@ -227,32 +222,33 @@ function get(id) { return document.getElementById(id).value.trim(); }
 function slider(id) { return parseInt(document.getElementById(id).value) / 100; }
 
 // --- Character counters ---
-const LIMITS = { promptText: 4980, sketchNotes: 12000 };
+const MAX_SCENE = 12000;
+const MAX_PROMPT = 4980;
 
 function updateCounters() {
-  ['promptText', 'sketchNotes'].forEach(id => {
-    const el = document.getElementById(id);
-    const len = el.value.length;
-    const max = LIMITS[id];
-    const pct = len / max;
-    document.getElementById(id === 'promptText' ? 'promptCount' : 'sketchCount').textContent = len.toLocaleString();
-    const counter = document.getElementById(id === 'promptText' ? 'promptCounter' : 'sketchCounter');
-    counter.classList.remove('warn', 'over');
-    if (pct >= 1.0) counter.classList.add('over');
-    else if (pct >= 0.9) counter.classList.add('warn');
-    const msg = document.getElementById(id === 'promptText' ? 'promptLimitMsg' : 'sketchLimitMsg');
-    msg.classList.toggle('visible', len > max);
-  });
+  const el = document.getElementById('promptText');
+  const len = el.value.length;
+  const pct = len / MAX_SCENE;
+  document.getElementById('promptCount').textContent = len.toLocaleString();
+  const counter = document.getElementById('promptCounter');
+  counter.classList.remove('warn', 'over');
+  if (pct >= 1.0) counter.classList.add('over');
+  else if (pct >= 0.9) counter.classList.add('warn');
+  document.getElementById('promptLimitMsg').classList.toggle('visible', len > MAX_SCENE);
 }
 
 function validateInput() {
   const errors = [];
-  const promptLen = document.getElementById('promptText').value.length;
-  const sketchLen = document.getElementById('sketchNotes').value.length;
-  if (promptLen === 0) errors.push('Scene description is required');
-  if (promptLen > LIMITS.promptText) errors.push(`Scene description is ${promptLen.toLocaleString()} chars — max is ${LIMITS.promptText.toLocaleString()}`);
-  if (sketchLen > LIMITS.sketchNotes) errors.push(`Scene details are ${sketchLen.toLocaleString()} chars — max is ${LIMITS.sketchNotes.toLocaleString()}`);
+  const len = document.getElementById('promptText').value.length;
+  if (len === 0) errors.push('Scene description is required');
+  if (len > MAX_SCENE) errors.push(`Scene description is ${len.toLocaleString()} chars — max is ${MAX_SCENE.toLocaleString()}`);
   return errors;
+}
+
+// Split input: first MAX_PROMPT chars → prompt, full text → sketch_notes
+function getSceneText() {
+  const full = document.getElementById('promptText').value.trim();
+  return { prompt: full.substring(0, MAX_PROMPT), sketch_notes: full || null };
 }
 
 function updateSliders() {
@@ -272,15 +268,11 @@ function updateLabels() {
   document.getElementById('enthusiasmVal').textContent = motLabels[Math.min(Math.floor(e*7), 6)];
   document.getElementById('depthVal').textContent = depLabels[Math.min(Math.floor(d*7), 6)];
 
+  const label = document.getElementById('promptText').parentNode.querySelector('label');
   if (mode === 'shot-sequence') {
-    document.getElementById('promptText').parentNode.querySelector('label').textContent = 'Anchor subject (shared across all shots)';
-    document.getElementById('sketchNotes').parentNode.querySelector('label').textContent = 'Scene description / base narrative';
-  } else if (mode === 'pipeline') {
-    document.getElementById('promptText').parentNode.querySelector('label').textContent = 'Describe your scene';
-    document.getElementById('sketchNotes').parentNode.querySelector('label').textContent = 'Scene details / world context (optional)';
+    label.textContent = 'Describe your scene (anchor subject + narrative)';
   } else {
-    document.getElementById('promptText').parentNode.querySelector('label').textContent = 'Describe your scene';
-    document.getElementById('sketchNotes').parentNode.querySelector('label').textContent = 'Scene details / world context (optional)';
+    label.textContent = 'Describe your scene';
   }
 }
 
